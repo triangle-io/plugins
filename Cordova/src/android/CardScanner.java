@@ -27,16 +27,11 @@ public class CardScanner extends CordovaPlugin implements TapListener
     private TapProcessor tapProcessor;
 
     /**
-     * Messages used to indicate type of event to the js side.
+     * Identifier of JavaScript events.
      */
-    private static int MESSAGE_TAP_ERROR = 1;
-    private static int MESSAGE_TAP_DETECT = 2;
-    private static int MESSAGE_TAP_SUCCESS = 3;
-
-    /**
-     * Callback context used to transfer data back to the js side.
-     */
-    private CallbackContext callbackContext;
+    private static String EVENT_TAP_ERROR = "onTapError";
+    private static String EVENT_TAP_DETECT = "onTapDetect";
+    private static String EVENT_TAP_SUCCESS = "onTapSuccess";
 
     public CardScanner()
     {
@@ -97,46 +92,32 @@ public class CardScanner extends CordovaPlugin implements TapListener
         callbackContext.success();
     }
 
-    private void activate(CallbackContext callbackContext)
-    {
-        this.callbackContext = callbackContext;
-    }
-
-    private void deactivate()
-    {
-        this.callbackContext = null;
-    }
-
     /**
-     * Sends a message to the js side.
-     * @param messageType an integer indicating the type of message being sent.
+     * Raises an event on the JavaScript side.
+     * @param eventName a String identifying the event name.
      * @param messageData the data associated with the message. May be null.
      */
-    private void sendMessage(int messageType, JSONObject messageData)
+    private void raiseJavaScriptEvent(String eventName, JSONObject messageData)
     {
-        if (this.callbackContext != null)
+        String statement = null;
+
+        if (messageData != null)
         {
-            String messageContents = "{id: " +
-                    String.valueOf(messageType) +
-                    ",data: " +
-                    (messageData == null ? "null" : messageData.toString()) +
-                    "}";
-
-            PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, messageContents);
-
-            // We like to be able to reuse the same callback multiple times
-            pluginResult.setKeepCallback(true);
-
-            // Send the data to the js side
-            this.callbackContext.sendPluginResult(pluginResult);
+            statement = String.format("cordova.fireDocumentEvent(\"%s\", %s);",
+                    eventName,
+                    messageData.toString());
         }
+        else
+        {
+            statement = String.format("cordova.fireDocumentEvent(\"%s\");", eventName);
+        }
+
+        this.webView.sendJavascript(statement);
     }
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException
     {
-        boolean handled = false;
-
         if (action.equalsIgnoreCase("initialize"))
         {
             String applicationId = args.getString(0);
@@ -145,38 +126,16 @@ public class CardScanner extends CordovaPlugin implements TapListener
 
             this.initializeTriangleSession(applicationId, accessKey, secretKey, callbackContext);
 
-            handled = true;
-        }
-        else if (action.equalsIgnoreCase("activate"))
-        {
-            this.activate(callbackContext);
-
-            handled = true;
-        }
-        else if (action.equalsIgnoreCase("deactivate"))
-        {
-            this.deactivate();
-
-            // deactivation always succeeds
-            callbackContext.success();
-
-            handled = true;
-        }
-
-        if (handled)
-        {
             return true;
         }
-        else
-        {
-            return super.execute(action, args, callbackContext);
-        }
+
+        return super.execute(action, args, callbackContext);
     }
 
     @Override
     public void onTapDetect()
     {
-        this.sendMessage(MESSAGE_TAP_DETECT, null);
+        this.raiseJavaScriptEvent(EVENT_TAP_DETECT, null);
     }
 
     @Override
@@ -193,7 +152,7 @@ public class CardScanner extends CordovaPlugin implements TapListener
             // Should never occur
         }
 
-        this.sendMessage(MESSAGE_TAP_ERROR, jsonObject);
+        this.raiseJavaScriptEvent(EVENT_TAP_ERROR, jsonObject);
     }
 
     @Override
@@ -207,6 +166,6 @@ public class CardScanner extends CordovaPlugin implements TapListener
         JSONObject jsonObject = new JSONObject(dataMap);
 
         // Finally send the message across
-        this.sendMessage(MESSAGE_TAP_SUCCESS, jsonObject);
+        this.raiseJavaScriptEvent(EVENT_TAP_SUCCESS, jsonObject);
     }
 }
