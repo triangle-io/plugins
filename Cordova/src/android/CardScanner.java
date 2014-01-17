@@ -104,12 +104,12 @@ public class CardScanner extends CordovaPlugin implements TapListener
         if (messageData != null)
         {
             statement = String.format("cordova.fireDocumentEvent(\"%s\", %s);",
-                    eventName,
+                    eventName.toLowerCase(),
                     messageData.toString());
         }
         else
         {
-            statement = String.format("cordova.fireDocumentEvent(\"%s\");", eventName);
+            statement = String.format("cordova.fireDocumentEvent(\"%s\");", eventName.toLowerCase());
         }
 
         this.webView.sendJavascript(statement);
