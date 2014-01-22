@@ -24,6 +24,12 @@
             <clobbers target="navigator.triangle" />
         </js-module>
 
+	<config-file target="res/xml/config.xml" parent="/*">
+            <feature name="Triangle">
+	        <param name="android-package" value="io.triangle.cordova.CardScanner" />
+	    </feature>
+        </config-file>
+
         <config-file target="AndroidManifest.xml" parent="/*">
             <uses-permission android:name="android.permission.INTERNET" />
             <uses-permission android:name="android.permission.NFC" />
