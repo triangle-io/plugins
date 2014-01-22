@@ -32,21 +32,13 @@ public class CardScanner extends CordovaPlugin implements TapListener
     private static String EVENT_TAP_DETECT = "onTapDetect";
     private static String EVENT_TAP_SUCCESS = "onTapSuccess";
 
-    public CardScanner()
-    {
-        this.tapProcessor = new TapProcessor(this.cordova.getActivity());
-
-        // Subscribe to events raised during processing of credit card taps
-        this.tapProcessor.setTapListener(this);
-    }
-
     @Override
     public void onResume(boolean multitasking)
     {
         super.onResume(multitasking);
 
         // Resume acceptance of taps
-        if (Session.getInstance().isInitialized())
+        if (Session.getInstance().isInitialized() && this.tapProcessor != null)
         {
             this.tapProcessor.resume();
         }
@@ -58,7 +50,7 @@ public class CardScanner extends CordovaPlugin implements TapListener
         super.onPause(multitasking);
 
         // Stop accepting taps
-        if (Session.getInstance().isInitialized())
+        if (Session.getInstance().isInitialized() && this.tapProcessor != null)
         {
             this.tapProcessor.pause();
         }
@@ -75,6 +67,12 @@ public class CardScanner extends CordovaPlugin implements TapListener
         try
         {
             Session.getInstance().initialize(applicationId, accessKey, secretKey, this.cordova.getActivity().getApplication());
+
+            // Initialize the TapProcessor class now that the Session has been initialized
+            this.tapProcessor = new TapProcessor(this.cordova.getActivity());
+
+            // Subscribe to events raised during processing of credit card taps
+            this.tapProcessor.setTapListener(this);
         }
         catch (TriangleException e)
         {
