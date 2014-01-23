@@ -12,6 +12,11 @@ var triangle =
      */
     initialize: function(applicationId, accessKey, secretKey, successCallback, errorCallback)
     {
+        // Define document events used by the API
+        cordova.addDocumentEventHandler('ontaperror');
+        cordova.addDocumentEventHandler('ontapsuccess');
+        cordova.addDocumentEventHandler('ontapdetect');
+
         // Call the Android side to initialize the Triangle session
         exec(successCallback, errorCallback, "Triangle", "initialize", [applicationId, accessKey, secretKey]);
     }
