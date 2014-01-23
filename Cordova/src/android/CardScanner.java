@@ -1,13 +1,16 @@
 package io.triangle.cordova;
 
 import android.os.Parcel;
+import android.util.Log;
 import io.triangle.Session;
 import io.triangle.TriangleException;
 import io.triangle.reader.PaymentCard;
 import io.triangle.reader.TapListener;
 import io.triangle.reader.TapProcessor;
 import org.apache.cordova.CallbackContext;
+import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaPlugin;
+import org.apache.cordova.CordovaWebView;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -28,9 +31,11 @@ public class CardScanner extends CordovaPlugin implements TapListener
     /**
      * Identifier of JavaScript events.
      */
-    private static String EVENT_TAP_ERROR = "onTapError";
-    private static String EVENT_TAP_DETECT = "onTapDetect";
-    private static String EVENT_TAP_SUCCESS = "onTapSuccess";
+    private static String EVENT_TAP_ERROR = "ontaperror";
+    private static String EVENT_TAP_DETECT = "ontapdetect";
+    private static String EVENT_TAP_SUCCESS = "ontapsuccess";
+
+    private static String LOG_TAG = "TrianglePlugin";
 
     @Override
     public void onResume(boolean multitasking)
@@ -100,16 +105,22 @@ public class CardScanner extends CordovaPlugin implements TapListener
 
         if (messageData != null)
         {
-            statement = String.format("cordova.fireDocumentEvent(\"%s\", %s);",
-                    eventName.toLowerCase(),
+            statement = String.format("cordova.fireDocumentEvent('%s', %s);",
+                    eventName,
                     messageData.toString());
         }
         else
         {
-            statement = String.format("cordova.fireDocumentEvent(\"%s\");", eventName.toLowerCase());
+            statement = String.format("cordova.fireDocumentEvent('%s');", eventName);
         }
 
-        this.webView.sendJavascript(statement);
+        // Surround statement with try/catch
+        statement = "try { console.log('statement sending'); " + statement + "} catch (err) { console.log('error sending javascript from Android'); }";
+
+        // Convert into URL for marshalling
+        String url = "javascript:" + statement + ";";
+
+        this.webView.loadUrl(url);
     }
 
     @Override
@@ -132,12 +143,16 @@ public class CardScanner extends CordovaPlugin implements TapListener
     @Override
     public void onTapDetect()
     {
+        Log.d(LOG_TAG, "Tap detected.");
+
         this.raiseJavaScriptEvent(EVENT_TAP_DETECT, null);
     }
 
     @Override
     public void onTapError(Exception e)
     {
+        Log.d(LOG_TAG, "Tap error detected.");
+
         JSONObject jsonObject = new JSONObject();
 
         try
@@ -155,6 +170,8 @@ public class CardScanner extends CordovaPlugin implements TapListener
     @Override
     public void onTapSuccess(PaymentCard paymentCard)
     {
+        Log.d(LOG_TAG, "Tap successfully processed.");
+
         // Dump the payment card class into a JSONObject
         Parcel paymentCardParcel = Parcel.obtain();
         paymentCard.writeToParcel(paymentCardParcel, 0);
