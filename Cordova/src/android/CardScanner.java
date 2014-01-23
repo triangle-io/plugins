@@ -179,11 +179,22 @@ public class CardScanner extends CordovaPlugin implements TapListener
         Log.d(LOG_TAG, "Tap successfully processed.");
 
         // Dump the payment card class into a JSONObject
-        Parcel paymentCardParcel = Parcel.obtain();
-        paymentCard.writeToParcel(paymentCardParcel, 0);
-        Map<String, Object> dataMap = new HashMap<String, Object>();
-        paymentCardParcel.writeMap(dataMap);
-        JSONObject jsonObject = new JSONObject(dataMap);
+        JSONObject jsonObject = new JSONObject();
+
+        try
+        {
+            jsonObject.put("lastFourDigits", paymentCard.getLastFourDigits());
+            jsonObject.put("cardholderName", paymentCard.getCardholderName());
+            jsonObject.put("cardBrand", paymentCard.getCardBrand());
+            jsonObject.put("activationDate", paymentCard.getActivationDate());
+            jsonObject.put("expiryDate", paymentCard.getExpiryDate());
+            jsonObject.put("cardPreferredName", paymentCard.getCardPreferredName());
+            jsonObject.put("encryptedAccountNumber", JSONObject.quote(paymentCard.getEncryptedAccountNumber()));
+        }
+        catch (JSONException e)
+        {
+            // Should never occur as we are putting string and date data only
+        }
 
         // Finally send the message across
         this.raiseJavaScriptEvent(EVENT_TAP_SUCCESS, jsonObject);
