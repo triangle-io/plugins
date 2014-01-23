@@ -8,9 +8,7 @@ import io.triangle.reader.PaymentCard;
 import io.triangle.reader.TapListener;
 import io.triangle.reader.TapProcessor;
 import org.apache.cordova.CallbackContext;
-import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaPlugin;
-import org.apache.cordova.CordovaWebView;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -115,12 +113,9 @@ public class CardScanner extends CordovaPlugin implements TapListener
         }
 
         // Surround statement with try/catch
-        statement = "try { console.log('statement sending'); " + statement + "} catch (err) { console.log('error sending javascript from Android'); }";
+        statement = "try {" + statement + "} catch (err) { console.log('error sending javascript from Android'); }";
 
-        // Convert into URL for marshalling
-        String url = "javascript:" + statement + ";";
-
-        this.webView.loadUrl(url);
+        this.webView.sendJavascript(statement);
     }
 
     @Override
@@ -128,11 +123,22 @@ public class CardScanner extends CordovaPlugin implements TapListener
     {
         if (action.equalsIgnoreCase("initialize"))
         {
-            String applicationId = args.getString(0);
-            String accessKey = args.getString(1);
-            String secretKey = args.getString(2);
+            final String applicationId = args.getString(0);
+            final String accessKey = args.getString(1);
+            final String secretKey = args.getString(2);
 
-            this.initializeTriangleSession(applicationId, accessKey, secretKey, callbackContext);
+            // Capture call back context for delegate
+            final CallbackContext callback = callbackContext;
+
+            // Execute initialization on a thread other than the core WebView thread
+            this.cordova.getThreadPool().execute(new Runnable()
+            {
+                @Override
+                public void run()
+                {
+                    CardScanner.this.initializeTriangleSession(applicationId, accessKey, secretKey, callback);
+                }
+            });
 
             return true;
         }
