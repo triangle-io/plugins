@@ -38,7 +38,7 @@
         </config-file>
 
         <source-file src="src/android/CardScanner.java" target-dir="src/io/triangle/cordova" />
-        <source-file src="libs/android/triangle.io-1.0.6.jar" target-dir="libs" />
+        <source-file src="libs/android/triangle.io-1.0.8.jar" target-dir="libs" />
 
     </platform>
 
