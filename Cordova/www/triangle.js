@@ -20,6 +20,24 @@ var triangle =
 
         // Call the Android side to initialize the Triangle session
         exec(successCallback, errorCallback, "Triangle", "initialize", [applicationId, accessKey, secretKey]);
+    },
+    /**
+     * Instructs the plugin to decrypt the information in the card. Use with caution.
+     * @param modulus Modulus parameter of the RSA's private key for decryption.
+     * @param d D parameter of the RSA's private key for decryption.
+     */
+    decrypt: function(modulus, d, successCallback, errorCallback)
+    {
+        // Call decrypt method on the plugin
+        exec(successCallback, errorCallback, "Triangle", "decrypt", [modulus, d]);
+    },
+    /**
+     * Instructs the API to send card's information in encrypted format
+     */
+    encrypt: function()
+    {
+        // Call encrypt method on the plugin
+        exec(successCallback, errorCallback, "Triangle", "encrypt");
     }
 }
 

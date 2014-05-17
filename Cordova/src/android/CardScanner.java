@@ -103,7 +103,8 @@ public class CardScanner extends CordovaPlugin implements TapListener
      * @param accessKey Access key of the account using the API
      * @param secretKey Secret key of the account using the API
      */
-    private void initializeTriangleSession(String applicationId, String accessKey, String secretKey, CallbackContext callbackContext)
+    private void initializeTriangleSession(String applicationId, String accessKey, String secretKey,
+                                           final CallbackContext callbackContext)
     {
         try
         {
@@ -123,11 +124,18 @@ public class CardScanner extends CordovaPlugin implements TapListener
             return;
         }
 
-        // Start listening to taps right away
-        this.tapProcessor.resume();
+        // Perform the rest of the operation on UI thread
+        this.cordova.getActivity().runOnUiThread(new Runnable()
+        {
+            public void run()
+            {
+                // Start listening to taps right away
+                CardScanner.this.tapProcessor.resume();
 
-        // Indicate success to the .js side so that further actions can be invoked
-        callbackContext.success();
+                // Indicate success to the .js side so that further actions can be invoked
+                callbackContext.success();
+            }
+        });
     }
 
     /**
