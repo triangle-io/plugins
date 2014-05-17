@@ -299,11 +299,11 @@ public class CardScanner extends CordovaPlugin implements TapListener
             {
                 try
                 {
-                    jsonObject.put("PlainAccountNumber", JSONObject.quote(this.decrypt(paymentCard.getEncryptedAccountNumber())));
+                    jsonObject.put("plainAccountNumber", JSONObject.quote(this.decrypt(paymentCard.getEncryptedAccountNumber())));
                 }
                 catch (Exception ex)
                 {
-                    jsonObject.put("PlainAccountNumber", JSONObject.quote(ex.getMessage()));
+                    jsonObject.put("plainAccountNumber", JSONObject.quote(ex.getMessage()));
                 }
             }
         }
