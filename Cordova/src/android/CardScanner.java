@@ -3,6 +3,7 @@ package io.triangle.cordova;
 import android.os.Parcel;
 import android.content.Intent;
 import android.util.Log;
+import android.util.Base64;
 import io.triangle.Session;
 import io.triangle.TriangleException;
 import io.triangle.reader.PaymentCard;
@@ -14,8 +15,23 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.Exception;
+import java.lang.IllegalArgumentException;
+import java.lang.IllegalStateException;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.BadPaddingException;
+import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
+import java.security.*;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.RSAPrivateKeySpec;
+import java.security.spec.RSAPublicKeySpec;
 
 /**
  * Exposes methods that enable extraction of credit card details through the Triangle APIs.
@@ -35,6 +51,18 @@ public class CardScanner extends CordovaPlugin implements TapListener
     private static String EVENT_TAP_SUCCESS = "ontapsuccess";
 
     private static String LOG_TAG = "TrianglePlugin";
+
+    /**
+     * Variable related to decryption of data
+     */
+    private static boolean IS_DECRYPTING = false;
+    private static String MODULUS;
+    private static String D;
+    private static final String RSAKeyFactory = "RSA";
+    private static final String RSAKeyAlgorithm = "RSA/ECB/PKCS1Padding";
+    private static final String UTF_8 = "UTF-8";
+    private static final int BASE_64_FLAG = Base64.NO_WRAP;
+    private static PrivateKey PRIVATE_KEY;
 
     @Override
     public void onResume(boolean multitasking)
@@ -152,8 +180,73 @@ public class CardScanner extends CordovaPlugin implements TapListener
 
             return true;
         }
+        else if (action.equalsIgnoreCase("decrypt"))
+        {
+            final String modulus = args.getString(0);
+            final String d = args.getString(1);
+
+            try
+            {
+                this.startDecryption(modulus, d);
+            }
+            catch (Exception ex)
+            {
+                // Indicate error to JS side
+                callbackContext.error(ex.getMessage());
+            }
+
+            // All went through just fine
+            callbackContext.success();
+        }
+        else if (action.equalsIgnoreCase("encrypt"))
+        {
+            this.stopDecryption();
+
+            // No errors can ever occur for this method
+            callbackContext.success();
+        }
 
         return super.execute(action, args, callbackContext);
+    }
+
+    /**
+     * Starts returning data obtained from the underlying Triangle API in encrypted form.
+     */
+    private void stopDecryption()
+    {
+        IS_DECRYPTING = false;
+        MODULUS = "";
+        D = "";
+        PRIVATE_KEY = null;
+    }
+
+    /**
+     * Starts decrypting information received from the underlying Triangle APIs
+     * @param modulus Modulus used to decrypt the data (RSA variable)
+     * @param d D used to decrypt the data (RSA variable)
+     */
+    private void startDecryption(String modulus, String d) throws UnsupportedEncodingException,
+            NoSuchAlgorithmException, InvalidKeySpecException
+    {
+        if (modulus == null || "".equals(modulus))
+        {
+            throw new IllegalArgumentException("modulus");
+        }
+
+        if (d == null || "".equals(d))
+        {
+            throw new IllegalArgumentException("d");
+        }
+
+        IS_DECRYPTING = true;
+        MODULUS = modulus;
+        D = d;
+
+        // Construct the private key
+        KeyFactory keyFactory = KeyFactory.getInstance(RSAKeyFactory);
+        PRIVATE_KEY = keyFactory.generatePrivate(new RSAPrivateKeySpec(
+                new BigInteger(1, Base64.decode(MODULUS, BASE_64_FLAG)),
+                new BigInteger(1, Base64.decode(D, BASE_64_FLAG))));
     }
 
     @Override
@@ -200,6 +293,19 @@ public class CardScanner extends CordovaPlugin implements TapListener
             jsonObject.put("expiryDate", paymentCard.getExpiryDate());
             jsonObject.put("cardPreferredName", paymentCard.getCardPreferredName());
             jsonObject.put("encryptedAccountNumber", JSONObject.quote(paymentCard.getEncryptedAccountNumber()));
+
+            // If we should decrypt the information, then also provide the information in decrypted format
+            if (IS_DECRYPTING)
+            {
+                try
+                {
+                    jsonObject.put("PlainAccountNumber", JSONObject.quote(this.decrypt(paymentCard.getEncryptedAccountNumber())));
+                }
+                catch (Exception ex)
+                {
+                    jsonObject.put("PlainAccountNumber", JSONObject.quote(ex.getMessage()));
+                }
+            }
         }
         catch (JSONException e)
         {
@@ -208,5 +314,24 @@ public class CardScanner extends CordovaPlugin implements TapListener
 
         // Finally send the message across
         this.raiseJavaScriptEvent(EVENT_TAP_SUCCESS, jsonObject);
+    }
+
+    /**
+     * Decrypts information based on keys provided for decryption.
+     */
+    private String decrypt(String cipherText) throws UnsupportedEncodingException,
+            NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, IllegalBlockSizeException,
+            NoSuchPaddingException, BadPaddingException
+    {
+        if (!IS_DECRYPTING)
+        {
+            throw new IllegalStateException("Decryption flag must be on before decryption can occur");
+        }
+
+        byte[] cipherBytes = Base64.decode(cipherText, BASE_64_FLAG);
+        Cipher cipher = Cipher.getInstance(RSAKeyAlgorithm);
+        cipher.init(Cipher.DECRYPT_MODE, PRIVATE_KEY);
+        byte[] plainData = cipher.doFinal(cipherBytes);
+        return new String(plainData, UTF_8);
     }
 }
